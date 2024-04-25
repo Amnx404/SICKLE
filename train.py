@@ -52,6 +52,7 @@ parser.add_argument("--encoder_norm", default="group", type=str)
 parser.add_argument("--n_head", default=16, type=int)
 parser.add_argument("--d_model", default=256, type=int)
 parser.add_argument("--d_k", default=4, type=int)
+parser.add_argument("--fusion",default=0, type=int)
 
 # Set-up parameters
 parser.add_argument(
@@ -163,10 +164,8 @@ def log_wandb(loss, metrics, table=None, phase="train"):
                                                                         class_names=["Paddy", "Non Paddy"])})
 
 
-def iterate(
-        model, data_loader, criterion, optimizer=None, scheduler=None, mode="train", epoch=1, task="crop_type",
-        device=None, log=False, CFG=None,
-):
+def iterate(model, data_loader, criterion, optimizer=None, scheduler=None, mode="train", epoch=1, 
+            task="crop_type", device=None, log=False, CFG=None):
     loss_meter = tnt.meter.AverageValueMeter()
     predictions = None
     targets = None
@@ -402,7 +401,11 @@ def main(CFG):
     # else:
     #     print("Using Fusion model")
     #     model = model_utils.Fusion_model(CFG)
-    model = model_utils.Fusion_model(CFG)
+    if CFG.fusion == 0:
+        model = model_utils.Fusion_model(CFG)
+    elif CFG.fusion == 1:
+        model = model_utils.Fusion_model_PXL_ATTN(CFG)
+
     model.apply(weight_init)
     model = model.to(device)
     CFG.N_params = utae_utils.get_ntrainparams(model)
