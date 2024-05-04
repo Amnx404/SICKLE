@@ -405,7 +405,20 @@ def main(CFG):
         model = model_utils.Fusion_model(CFG)
     elif CFG.fusion == 1:
         model = model_utils.Fusion_model_PXL_ATTN(CFG)
+    elif CFG.fusion == 2:
+        model = model_utils.Fusion_model_CONCAT_ATTN(CFG)
+    elif CFG.fusion == 3:
+        model = model_utils.Fusion_model_CONCAT_ATTN_PIXELWISE(CFG)
+    elif CFG.fusion == 4:
+        model=model_utils.fusion_model_pxl_extralayers(CFG)
+    elif CFG.fusion == 5:
+        model=model_utils.CrossFusionModel(CFG)
+    elif CFG.fusion == 6:
+        model=model_utils.MultiheadFusionModel(CFG)
+    elif CFG.fusion == 7:
+        model=model_utils.CHN_ATTN(CFG)
 
+        
     model.apply(weight_init)
     model = model.to(device)
     CFG.N_params = utae_utils.get_ntrainparams(model)

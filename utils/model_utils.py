@@ -1,4 +1,4 @@
-from models import utae, pastis_unet3d, convlstm, convgru, fpn
+from models import utae, pastis_unet3d, convlstm, convgru, fpn, utae_mid
 import torch.nn as nn
 import torch
 
@@ -20,6 +20,25 @@ class Build_model(nn.Module):
         input_dim = len(config.satellites[sat]["bands"])
         if config.model == "utae":
             model = utae.UTAE(
+                input_dim=input_dim,
+                encoder_widths=config.encoder_widths,
+                decoder_widths=config.decoder_widths,
+                out_conv=config.out_conv,
+                str_conv_k=config.str_conv_k,
+                str_conv_s=config.str_conv_s,
+                str_conv_p=config.str_conv_p,
+                agg_mode=config.agg_mode,
+                encoder_norm=config.encoder_norm,
+                n_head=config.n_head,
+                d_model=config.d_model,
+                d_k=config.d_k,
+                encoder=False,
+                return_maps=False,
+                pad_value=config.pad_value,
+                padding_mode=config.padding_mode,
+            )
+        elif config.model == "utae_mid":
+            model = utae_mid.UTAE(
                 input_dim=input_dim,
                 encoder_widths=config.encoder_widths,
                 decoder_widths=config.decoder_widths,
@@ -74,6 +93,7 @@ class Build_model(nn.Module):
         return model
 
 
+
 class Fusion_model(Build_model):
     def __init__(self, CFG):
         super(Fusion_model, self).__init__(CFG)
@@ -89,6 +109,7 @@ class Fusion_model(Build_model):
         for satellite in self.CFG.satellites.keys():
             (images, dates) = data[satellite]
             model = self.models[satellite]
+            # print(images.shape, dates.shape)
             y_preds[satellite] = model(images, batch_positions=dates)
             
     
@@ -111,10 +132,133 @@ class PixelWiseAttention(nn.Module):
         attention = self.conv(x)
         attention = torch.sigmoid(attention)
         return attention
+    
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 class Fusion_model_PXL_ATTN(Build_model):
     def __init__(self, CFG):
+    # def __init__(self, CFG, num_heads = 8):
         super(Fusion_model_PXL_ATTN, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+        
+        self.attention_modules = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            attention_module = PixelWiseAttention(self.CFG.out_conv[-1])
+            # attention_module = MultiHeadAttention(num_heads, self.CFG.out_conv[-1])
+            self.attention_modules[satellite] = attention_module
+        
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, data):
+        y_preds = {}
+        attentions = {}
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model = self.models[satellite]
+            y_pred = model(images, batch_positions=dates)
+            print(f"Shape of y_pred from {satellite}: {y_pred.shape}")  # Add this line
+            y_preds[satellite] = y_pred
+            
+            attention_module = self.attention_modules[satellite]
+            attention = attention_module(y_pred)
+            print(f"Shape of attention output from {satellite}: {attention.shape}")  # Add this line
+            attentions[satellite] = attention
+        
+        # Perform pixel-wise attention fusion
+        fused_features = torch.stack(list(y_preds.values()), dim=0)  # Shape: (num_satellites, batch_size, channels, height, width)
+        attention_weights = torch.stack(list(attentions.values()), dim=0)  # Shape: (num_satellites, batch_size, channels, height, width)
+        print(f"Shape of fused_features: {fused_features.shape}")
+        print(f"Shape of attention_weights: {attention_weights.shape}")
+    
+        attention_weights = F.softmax(attention_weights, dim=0)
+        
+        fused_features = (fused_features * attention_weights).sum(dim=0)
+        print(f"Shape of final fused_features after weighting: {fused_features.shape}")
+        y_pred = self.conv_final(fused_features)
+        return y_pred
+
+    
+    
+class Fusion_model_CONCAT_ATTN(Build_model):
+    def __init__(self, CFG):
+        super(Fusion_model_CONCAT_ATTN, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+        
+        self.attention = nn.Sequential(
+            nn.Conv2d(len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], 512, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], kernel_size=3, padding=1),
+            nn.Sigmoid()
+        )
+        
+        self.conv_final = nn.Conv2d(len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, data):
+        y_preds = {}
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model = self.models[satellite]
+            y_preds[satellite] = model(images, batch_positions=dates)
+        
+        # Concatenate feature maps from all satellites
+        y_pred = torch.cat(list(y_preds.values()), dim=1)
+        
+        # Apply attention
+        attention_weights = self.attention(y_pred)
+        y_pred = y_pred * attention_weights
+        
+        y_pred = self.conv_final(y_pred)
+        return y_pred
+    
+class Fusion_model_CONCAT_ATTN_PIXELWISE(Build_model):
+    def __init__(self, CFG):
+        super(Fusion_model_CONCAT_ATTN_PIXELWISE, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+        
+        self.attention = nn.Sequential(
+            nn.Conv2d(len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], 512, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], kernel_size=1),
+            nn.Sigmoid()
+        )
+        
+        self.conv_final = nn.Conv2d(len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, data):
+        y_preds = {}
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model = self.models[satellite]
+            y_preds[satellite] = model(images, batch_positions=dates)
+        
+        # Concatenate feature maps from all satellites
+        y_pred = torch.cat(list(y_preds.values()), dim=1)
+        
+        # Apply pixel-wise attention
+        attention_weights = self.attention(y_pred)
+        y_pred = y_pred * attention_weights
+        
+        y_pred = self.conv_final(y_pred)
+        return y_pred
+
+
+class fusion_model_pxl_extralayers(Build_model):
+    def __init__(self, CFG):
+        super(fusion_model_pxl_extralayers, self).__init__(CFG)
         self.CFG = CFG
         self.models = nn.ModuleDict()
         for satellite in CFG.satellites.keys():
@@ -127,6 +271,11 @@ class Fusion_model_PXL_ATTN(Build_model):
             self.attention_modules[satellite] = attention_module
         
         self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+        # Additional convolutional layers for increased complexity
+        self.conv_extra1 = nn.Conv2d(self.CFG.out_conv[-1], self.CFG.out_conv[-1], kernel_size=3, stride=1, padding=1)
+        self.conv_extra2 = nn.Conv2d(self.CFG.out_conv[-1], self.CFG.out_conv[-1], kernel_size=3, stride=1, padding=1)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, data):
         y_preds = {}
@@ -148,5 +297,200 @@ class Fusion_model_PXL_ATTN(Build_model):
         
         fused_features = (fused_features * attention_weights).sum(dim=0)
         
+        # Additional convolutional layers for increased complexity
+        fused_features = self.relu(self.conv_extra1(fused_features))
+        fused_features = self.relu(self.conv_extra2(fused_features))
+        
         y_pred = self.conv_final(fused_features)
         return y_pred
+
+class CrossAttention(nn.Module):
+    def __init__(self, num_features):
+        super(CrossAttention, self).__init__()
+        self.query_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
+        self.key_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
+        self.value_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, query, key, value):
+        query = self.query_conv(query)
+        key = self.key_conv(key)
+        value = self.value_conv(value)
+
+        attention_scores = torch.matmul(query, key.transpose(-2, -1))
+        attention_scores = self.softmax(attention_scores)
+
+        attended_value = torch.matmul(attention_scores, value)
+        return attended_value
+
+class CrossFusionModel(Build_model):
+    def __init__(self, CFG):
+        super(CrossFusionModel, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+        
+        self.cross_attention = CrossAttention(self.CFG.out_conv[-1])
+        
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, data):
+        y_preds = {}
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model = self.models[satellite]
+            y_pred = model(images, batch_positions=dates)
+            y_preds[satellite] = y_pred
+        
+        # Perform cross-attention fusion
+        satellite_keys = list(y_preds.keys())
+        fused_features = y_preds[satellite_keys[0]]  # Initialize with the first satellite's features
+        
+        for i in range(1, len(satellite_keys)):
+            query = fused_features
+            key = y_preds[satellite_keys[i]]
+            value = y_preds[satellite_keys[i]]
+            
+            attended_value = self.cross_attention(query, key, value)
+            fused_features = fused_features + attended_value
+        
+        y_pred = self.conv_final(fused_features)
+        return y_pred
+
+
+class MultiHeadPixelAttention(nn.Module):
+    def __init__(self, in_channels, num_heads):
+        super(MultiHeadPixelAttention, self).__init__()
+        self.num_heads = num_heads
+        self.attention = nn.MultiheadAttention(in_channels, num_heads)
+
+    def forward(self, x):
+        # Reshape input tensor to (sequence_length, batch_size, channels)
+        batch_size, channels, height, width = x.size()
+        x = x.view(batch_size, channels, height * width).permute(2, 0, 1)
+        
+        # Apply multi-head attention
+        attn_output, _ = self.attention(x, x, x)
+        
+        # Reshape attention output back to (batch_size, channels, height, width)
+        attn_output = attn_output.permute(1, 2, 0).view(batch_size, channels, height, width)
+        
+        return attn_output
+class MultiheadFusionModel(Build_model):
+    def __init__(self, CFG):
+        super(MultiheadFusionModel, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+        
+        self.attention_modules = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            attention_module = MultiHeadPixelAttention(self.CFG.out_conv[-1], num_heads=4)
+            self.attention_modules[satellite] = attention_module
+        
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, data):
+        y_preds = {}
+        attentions = {}
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model = self.models[satellite]
+            y_pred = model(images, batch_positions=dates)
+            
+            y_preds[satellite] = y_pred
+            
+            attention_module = self.attention_modules[satellite]
+            attention = attention_module(y_pred)
+            
+            attentions[satellite] = attention
+        
+        # Perform pixel-wise attention fusion
+        fused_features = torch.stack(list(y_preds.values()), dim=0)
+        attention_weights = torch.stack(list(attentions.values()), dim=0)
+    
+        attention_weights = F.softmax(attention_weights, dim=0)
+        
+        fused_features = (fused_features * attention_weights).sum(dim=0)
+        
+        y_pred = self.conv_final(fused_features)
+        return y_pred
+    
+class CHN_ATTN(Build_model):
+    def __init__(self, CFG):
+        super(CHN_ATTN, self).__init__(CFG)
+        self.models = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+        
+        self.attention_modules = nn.ModuleDict()
+        for satellite in CFG.satellites.keys():
+            attention_module = SEBlock(self.CFG.out_conv[-1])
+            self.attention_modules[satellite] = attention_module
+        
+        # Example integration of a DilatedConvBlock
+        self.dilated_conv_block = DilatedConvBlock(self.CFG.out_conv[-1], self.CFG.out_conv[-1])
+
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, data):
+        y_preds = {}
+        attentions = {}
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model = self.models[satellite]
+            y_pred = model(images, batch_positions=dates)
+            
+            # Apply dilated convolution here if appropriate
+            y_pred = self.dilated_conv_block(y_pred)
+            
+            attention_module = self.attention_modules[satellite]
+            attention = attention_module(y_pred)
+            y_preds[satellite] = y_pred
+            attentions[satellite] = attention
+        
+        fused_features = torch.stack(list(y_preds.values()), dim=0)
+        attention_weights = torch.stack(list(attentions.values()), dim=0)
+        attention_weights = F.softmax(attention_weights, dim=0)
+        fused_features = (fused_features * attention_weights).sum(dim=0)
+        
+        y_pred = self.conv_final(fused_features)
+        return y_pred
+
+class SEBlock(nn.Module):
+    def __init__(self, in_channels, reduction_ratio=16):
+        super(SEBlock, self).__init__()
+        self.squeeze = nn.AdaptiveAvgPool2d(1)
+        self.excitation = nn.Sequential(
+            nn.Linear(in_channels, in_channels // reduction_ratio),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_channels // reduction_ratio, in_channels),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.squeeze(x).view(b, c)
+        y = self.excitation(y)
+        if y.numel() == b * c:  # Check if the number of elements matches b*c
+            y = y.view(b, c, 1, 1)
+        else:
+            raise RuntimeError("Excitation output has incorrect size: expected {}, got {}".format(b*c, y.numel()))
+        return x * y
+
+
+class DilatedConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, dilation_rate=2):
+        super(DilatedConvBlock, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=dilation_rate, dilation=dilation_rate)
+
+    def forward(self, x):
+        return F.relu(self.conv(x))
+
+
+
