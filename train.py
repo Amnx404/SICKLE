@@ -31,6 +31,7 @@ import torch.nn as nn
 import torch.utils.data as data
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import torchnet as tnt
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 parser = argparse.ArgumentParser()
 # Model parameters
@@ -53,6 +54,7 @@ parser.add_argument("--n_head", default=16, type=int)
 parser.add_argument("--d_model", default=256, type=int)
 parser.add_argument("--d_k", default=4, type=int)
 parser.add_argument("--fusion",default=0, type=int)
+parser.add_argument("--annealing_type", default=0, type=int)
 
 # Set-up parameters
 parser.add_argument(
@@ -419,8 +421,11 @@ def main(CFG):
         model=model_utils.MultiheadFusionModel(CFG)
     elif CFG.fusion == 7:
         model=model_utils.CHN_ATTN(CFG)
+    elif CFG.fusion == 8:
+        model=model_utils.CombinedFusionModel(CFG)
+    elif CFG.fusion == 9:
+        model=model_utils.CombinedFusionModel2(CFG)
 
-        
     model.apply(weight_init)
     model = model.to(device)
     CFG.N_params = utae_utils.get_ntrainparams(model)
@@ -435,8 +440,14 @@ def main(CFG):
                                         weight=torch.tensor([0.62013, 0.37987])).to(device=CFG.device, dtype=torch.float32)
     else:
         criterion = RMSELoss(ignore_index=CFG.ignore_index)
-    scheduler = CosineAnnealingLR(optimizer, T_max=  CFG.epochs // 2, eta_min=1e-4)
-
+    if CFG.annealing_type == 0:
+        scheduler = CosineAnnealingLR(optimizer, T_max=  CFG.epochs // 2, eta_min=1e-4)
+    else:
+        scheduler = CosineAnnealingWarmRestarts(optimizer, 
+                                        T_0=CFG.epochs // 2, 
+                                        T_mult=1, 
+                                        eta_min=1e-4)
+    
     # Training loop
     trainlog = {}
     best_metric = 0 if CFG.task == "crop_type" else torch.inf

@@ -371,9 +371,6 @@ class MultiHeadPixelAttention(nn.Module):
         
         # Xavier Initialisation
         nn.init.xavier_uniform_(self.attention.in_proj_weight)
-        nn.init.xavier_uniform_(self.attention.q_proj_weight)
-        nn.init.xavier_uniform_(self.attention.k_proj_weight)
-        nn.init.xavier_uniform_(self.attention.v_proj_weight)
 
     def forward(self, x):
         # Reshape input tensor to (sequence_length, batch_size, channels)
@@ -387,6 +384,7 @@ class MultiHeadPixelAttention(nn.Module):
         attn_output = attn_output.permute(1, 2, 0).view(batch_size, channels, height, width)
         
         return attn_output
+    
 class MultiheadFusionModel(Build_model):
     def __init__(self, CFG):
         super(MultiheadFusionModel, self).__init__(CFG)
@@ -400,6 +398,8 @@ class MultiheadFusionModel(Build_model):
         for satellite in CFG.satellites.keys():
             attention_module = MultiHeadPixelAttention(self.CFG.out_conv[-1], num_heads=4)
             self.attention_modules[satellite] = attention_module
+            # Xavier Initialisation
+            nn.init.xavier_uniform_(self.attention_modules[satellite].attention.in_proj_weight)
         
         self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
 
@@ -441,6 +441,10 @@ class CHN_ATTN(Build_model):
         for satellite in CFG.satellites.keys():
             attention_module = SEBlock(self.CFG.out_conv[-1])
             self.attention_modules[satellite] = attention_module
+            
+            # Xavier Initialisation
+            nn.init.xavier_uniform_(self.attention_modules[satellite].excitation[0].weight)
+            nn.init.xavier_uniform_(self.attention_modules[satellite].excitation[2].weight)
         
         # Example integration of a DilatedConvBlock
         self.dilated_conv_block = DilatedConvBlock(self.CFG.out_conv[-1], self.CFG.out_conv[-1])
@@ -501,5 +505,146 @@ class DilatedConvBlock(nn.Module):
     def forward(self, x):
         return F.relu(self.conv(x))
 
+class CombinedFusionModel(Build_model):
+    def __init__(self, CFG):
+        super(CombinedFusionModel, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        self.attention_modules = nn.ModuleDict()
+        
+        # Initialize each satellite's model and multi-head self-attention module
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+            self_attention = MultiHeadPixelAttention(CFG.out_conv[-1], num_heads=4)
+            self.attention_modules[satellite] = self_attention
+        
+        self.cross_attention = CrossAttention(self.CFG.out_conv[-1])
+        
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
 
+    def forward(self, data):
+        y_preds = {}
+        
+        # First apply self-attention for each satellite independently
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            base_output = self.models[satellite](images, batch_positions=dates)
+            y_pred = self.attention_modules[satellite](base_output)
+            y_preds[satellite] = y_pred
+        
+        # Perform cross-attention fusion
+        satellite_keys = list(y_preds.keys())
+        fused_features = y_preds[satellite_keys[0]]  # Initialize with the first satellite's features
+        
+        for i in range(1, len(satellite_keys)):
+            query = fused_features
+            key = y_preds[satellite_keys[i]]
+            value = y_preds[satellite_keys[i]]
+            
+            attended_value = self.cross_attention(query, key, value)
+            fused_features = fused_features + attended_value
+        
+        y_pred = self.conv_final(fused_features)
+        return y_pred
+    
+class CombinedFusionModel2(Build_model):
+    def __init__(self, CFG):
+        super(CombinedFusionModel, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        
+        # Initialize each satellite's model and multi-head self-attention module
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self_attention = MultiHeadPixelAttention(CFG.in_channels[satellite], CFG.num_heads)
+            self.models[satellite] = nn.Sequential(model, self_attention)
+        
+        self.cross_attention = MultiHeadCrossAttention(self.CFG.out_conv[-1], num_heads=3)
+        
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
 
+    def forward(self, data):
+        y_preds = {}
+        
+        # First apply self-attention for each satellite independently
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            model_with_attention = self.models[satellite]
+            y_pred = model_with_attention(images, batch_positions=dates)
+            y_preds[satellite] = y_pred
+        
+        # Perform cross-attention fusion
+        satellite_keys = list(y_preds.keys())
+        fused_features = y_preds[satellite_keys[0]]  # Initialize with the first satellite's features
+        
+        for i in range(1, len(satellite_keys)):
+            query = fused_features
+            key = y_preds[satellite_keys[i]]
+            value = y_preds[satellite_keys[i]]
+            
+            attended_value = self.cross_attention(query, key, value)
+            fused_features = fused_features + attended_value
+        
+        y_pred = self.conv_final(fused_features)
+        return y_pred
+
+class MultiHeadCrossAttention(nn.Module):
+    def __init__(self, num_features, num_heads):
+        super(MultiHeadCrossAttention, self).__init__()
+        self.num_heads = num_heads
+        self.dim_per_head = num_features // num_heads
+        
+        # Ensure the division is valid
+        assert self.dim_per_head * num_heads == num_features, "num_features must be divisible by num_heads"
+
+        self.query_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
+        self.key_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
+        self.value_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
+        
+        self.softmax = nn.Softmax(dim=-1)
+        
+        # Xavier Initialisation for all weights
+        nn.init.xavier_uniform_(self.query_conv.weight)
+        nn.init.xavier_uniform_(self.key_conv.weight)
+        nn.init.xavier_uniform_(self.value_conv.weight)
+
+    def forward(self, query, key, value):
+        batch_size, channels, height, width = query.size()
+
+        # Apply the convolutions to the input
+        query = self.query_conv(query)
+        key = self.key_conv(key)
+        value = self.value_conv(value)
+        
+        # Split the features into multiple heads
+        query = self.split_heads(query, self.num_heads)
+        key = self.split_heads(key, self.num_heads)
+        value = self.split_heads(value, self.num_heads)
+
+        # Compute the dot product attention
+        attention_scores = torch.matmul(query, key.transpose(-2, -1)) / self.dim_per_head ** 0.5
+        attention_scores = self.softmax(attention_scores)
+
+        # Apply attention to the value vector
+        attended_value = torch.matmul(attention_scores, value)
+
+        # Concatenate the heads together
+        attended_value = self.combine_heads(attended_value)
+        
+        # Reshape to the original size
+        attended_value = attended_value.view(batch_size, channels, height, width)
+        
+        return attended_value
+
+    def split_heads(self, x, num_heads):
+        batch_size, channels, height, width = x.size()
+        new_shape = batch_size, num_heads, self.dim_per_head, height * width
+        x = x.view(*new_shape).permute(0, 1, 3, 2)  # (batch_size, num_heads, seq_len, depth)
+        return x
+
+    def combine_heads(self, x):
+        batch_size, num_heads, seq_len, depth = x.size()
+        x = x.permute(0, 2, 1, 3).contiguous()
+        new_shape = batch_size, -1, seq_len * depth  # flatten the last two dimensions
+        return x.view(*new_shape)
