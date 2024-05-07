@@ -7,3 +7,4 @@ utils/__pycache__/*
 *.zip
 dataset/*
 changed_dataset/*
+dataset*

@@ -164,15 +164,10 @@ def log_wandb(loss, metrics, table=None, phase="train"):
                                                                         class_names=["Paddy", "Non Paddy"])})
 
 
-<<<<<<< HEAD
-def iterate(model, data_loader, criterion, optimizer=None, scheduler=None, mode="train", epoch=1, 
-            task="crop_type", device=None, log=False, CFG=None):
-=======
 def iterate(
         model, data_loader, criterion, optimizer=None, scheduler=None, mode="train", epoch=1, task="crop_type",
         device=None, log=False, CFG=None,
 ):
->>>>>>> 32afeaddf0f50921bc2dd00be7ac508c39fb5a97
     loss_meter = tnt.meter.AverageValueMeter()
     predictions = None
     targets = None
