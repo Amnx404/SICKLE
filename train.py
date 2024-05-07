@@ -435,7 +435,7 @@ def main(CFG):
                                         weight=torch.tensor([0.62013, 0.37987])).to(device=CFG.device, dtype=torch.float32)
     else:
         criterion = RMSELoss(ignore_index=CFG.ignore_index)
-    scheduler = CosineAnnealingLR(optimizer, T_max=3 * CFG.epochs // 4, eta_min=1e-4)
+    scheduler = CosineAnnealingLR(optimizer, T_max=  CFG.epochs // 2, eta_min=1e-4)
 
     # Training loop
     trainlog = {}

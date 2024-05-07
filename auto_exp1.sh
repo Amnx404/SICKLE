@@ -5,9 +5,10 @@ BASE_CMD="python train.py --data_dir ./dataset --satellite [S1,S2,L8] --task cro
 
 # Array of fusion models and their corresponding names
 declare -A fusion_models
-fusion_models[1]="Fusion_model_PXL_ATTN"
-fusion_models[5]="CrossFusionModel"
-fusion_models[6]="MultiheadFusionModel"
+fusion_models[0]="UTAE_concat"
+# fusion_models[1]="Fusion_model_PXL_ATTN"
+# fusion_models[5]="CrossFusionModel"
+# fusion_models[6]="MultiheadFusionModel"
 
 # Loop over each fusion model
 for fusion in "${!fusion_models[@]}"; do

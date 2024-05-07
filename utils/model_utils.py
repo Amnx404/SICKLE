@@ -1,7 +1,7 @@
 from models import utae, pastis_unet3d, convlstm, convgru, fpn, utae_mid
 import torch.nn as nn
 import torch
-
+import torch.nn.functional as F
 
 class Build_model(nn.Module):
     def __init__(self, CFG):
@@ -92,8 +92,6 @@ class Build_model(nn.Module):
             raise NotImplementedError
         return model
 
-
-
 class Fusion_model(Build_model):
     def __init__(self, CFG):
         super(Fusion_model, self).__init__(CFG)
@@ -118,24 +116,18 @@ class Fusion_model(Build_model):
         y_pred = torch.cat(list(y_preds.values()), dim=1)  # Concatenating here
         y_pred = self.conv_final(y_pred)
         return y_pred
-    
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 class PixelWiseAttention(nn.Module):
     def __init__(self, in_channels):
         super(PixelWiseAttention, self).__init__()
         self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=1)
+        # Xavier Initialisation
+        nn.init.xavier_uniform_(self.conv.weight)
 
     def forward(self, x):
         attention = self.conv(x)
         attention = torch.sigmoid(attention)
         return attention
-    
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 class Fusion_model_PXL_ATTN(Build_model):
     def __init__(self, CFG):
@@ -181,9 +173,7 @@ class Fusion_model_PXL_ATTN(Build_model):
         fused_features = (fused_features * attention_weights).sum(dim=0)
         print(f"Shape of final fused_features after weighting: {fused_features.shape}")
         y_pred = self.conv_final(fused_features)
-        return y_pred
-
-    
+        return y_pred 
     
 class Fusion_model_CONCAT_ATTN(Build_model):
     def __init__(self, CFG):
@@ -200,6 +190,10 @@ class Fusion_model_CONCAT_ATTN(Build_model):
             nn.Conv2d(512, len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], kernel_size=3, padding=1),
             nn.Sigmoid()
         )
+        
+        # Xavier Initialisation
+        nn.init.xavier_uniform_(self.attention[0].weight)
+        nn.init.xavier_uniform_(self.attention[2].weight)
         
         self.conv_final = nn.Conv2d(len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
 
@@ -235,6 +229,10 @@ class Fusion_model_CONCAT_ATTN_PIXELWISE(Build_model):
             nn.Conv2d(512, len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], kernel_size=1),
             nn.Sigmoid()
         )
+        
+        # Xavier Initialisation
+        nn.init.xavier_uniform_(self.attention[0].weight)
+        nn.init.xavier_uniform_(self.attention[2].weight)
         
         self.conv_final = nn.Conv2d(len(self.CFG.satellites.keys()) * self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
 
@@ -311,6 +309,11 @@ class CrossAttention(nn.Module):
         self.key_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
         self.value_conv = nn.Conv2d(num_features, num_features, kernel_size=1)
         self.softmax = nn.Softmax(dim=-1)
+        
+        # Xavier Initialisation
+        nn.init.xavier_uniform_(self.query_conv.weight)
+        nn.init.xavier_uniform_(self.key_conv.weight)
+        nn.init.xavier_uniform_(self.value_conv.weight)
 
     def forward(self, query, key, value):
         query = self.query_conv(query)
@@ -365,6 +368,12 @@ class MultiHeadPixelAttention(nn.Module):
         super(MultiHeadPixelAttention, self).__init__()
         self.num_heads = num_heads
         self.attention = nn.MultiheadAttention(in_channels, num_heads)
+        
+        # Xavier Initialisation
+        nn.init.xavier_uniform_(self.attention.in_proj_weight)
+        nn.init.xavier_uniform_(self.attention.q_proj_weight)
+        nn.init.xavier_uniform_(self.attention.k_proj_weight)
+        nn.init.xavier_uniform_(self.attention.v_proj_weight)
 
     def forward(self, x):
         # Reshape input tensor to (sequence_length, batch_size, channels)
