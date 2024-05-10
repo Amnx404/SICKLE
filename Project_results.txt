@@ -1,10 +1,17 @@
-random_forest_L8: 82.90386183180004
-random_forest_S1: 76.39200117743633
-random_forest_S2: 78.92059800973949
-
 0_1_debug: 0.316398561000824
 
-random_forest_decisionfusion: 69.81610349267626
+random_forest_L8: 0.8290386183180004
+82-87-100
+
+random_forest_S1: 0.7639200117743633
+random_forest_S2: 0.7892059800973949
+78-81-84
+
+random_forest_100_per: 0.6981610349267626
+random_forest_50_per = 0.7526945195740194
+random_forest_20_per = 0.8218479233015657
+
+
 training_convlstm: 0.3765175938606262
 fusion_attn_pixelwise_0_extra:0.36526715755462646
 after_concat_fusion_attn_0: 0.3406098783016205

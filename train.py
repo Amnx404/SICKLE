@@ -425,7 +425,15 @@ def main(CFG):
         model=model_utils.CombinedFusionModel(CFG)
     elif CFG.fusion == 9:
         model=model_utils.CombinedFusionModel2(CFG)
-
+    elif CFG.fusion == 10:
+        model=model_utils.EnhancedFusionModel(CFG)
+    elif CFG.fusion == 11:
+        model=model_utils.EnhancedFusionModel1(CFG)
+    elif CFG.fusion == 12:
+        model=model_utils.CrossAttentionFusion(CFG)
+    elif CFG.fusion == 13:
+        model=model_utils.CrossAttentionFusionBasic(CFG)
+        
     model.apply(weight_init)
     model = model.to(device)
     CFG.N_params = utae_utils.get_ntrainparams(model)
@@ -441,8 +449,8 @@ def main(CFG):
     else:
         criterion = RMSELoss(ignore_index=CFG.ignore_index)
     if CFG.annealing_type == 0:
-        scheduler = CosineAnnealingLR(optimizer, T_max=  CFG.epochs // 2, eta_min=1e-4)
-    else:
+        scheduler = CosineAnnealingLR(optimizer, T_max=3 * CFG.epochs // 4, eta_min=1e-4)
+    elif CFG.annealing_type == 1:
         scheduler = CosineAnnealingWarmRestarts(optimizer, 
                                         T_0=CFG.epochs // 2, 
                                         T_mult=1, 
@@ -553,12 +561,14 @@ def main(CFG):
                     CFG.run_path, "checkpoint_best.pth.tar"
                 ),
             )
-        torch.save(
-            save_dict,
-            os.path.join(
-                CFG.run_path, "checkpoint_last.pth.tar"
-            ),
-        )
+            
+        if epoch <= 70:
+            torch.save(
+                save_dict,
+                os.path.join(
+                    CFG.run_path, f"checkpoint_{epoch}.pth.tar"
+                ),
+            )
 
     print("Testing best epoch . . .")
     best_checkpoint = torch.load(

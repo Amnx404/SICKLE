@@ -8,3 +8,8 @@ utils/__pycache__/*
 dataset/*
 changed_dataset/*
 dataset*
+tocopy/*
+new_runs/*
+old_runs/*
+dataset_20_per/*
+dataset_50_per/*

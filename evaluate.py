@@ -54,6 +54,7 @@ parser.add_argument("--n_head", default=16, type=int)
 parser.add_argument("--d_model", default=256, type=int)
 parser.add_argument("--d_k", default=4, type=int)
 parser.add_argument("--best_path", default=None, type=str)
+parser.add_argument("--fusion",default=0, type=int)
 
 # Set-up parameters
 parser.add_argument(
@@ -280,7 +281,7 @@ def generate_heatmap(mask):
 
 
 def log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_dates, gt_masks, pred_masks,
-                         val_table, seed, batch_id=None, CFG=None, task="crop_type"):
+                         val_table, seed, batch_id=None, CFG=None, task="crop_yield"):
     _id = 0
     # print(gt_masks.shape,pred_masks.shape)
     # pred_masks[pred_masks == 1] = 128
@@ -328,8 +329,9 @@ def log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_
 
         # log whole prediction mask
         os.makedirs(f"val_results/seed{seed}/val/{task}", exist_ok=True)
-        if task == "crop_type":
+        if task != "crop_type":
             np.save(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}.npy", pred_mask)
+            np.save(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_gt.npy", gt_mask)
         else:
             crop_type_mask = np.load(f"val_results/seed{seed}/val/crop_type/{batch_id}_{i}.npy")
             pred_mask[crop_type_mask <= 0.5] = -1
@@ -394,10 +396,40 @@ def main(CFG):
         (samples, dates) = batch_data[sat]
 
     # Model definition
-    model = model_utils.Fusion_model(CFG)
+    # model = model_utils.Fusion_model(CFG)
+    
+    if CFG.fusion == 0:
+        model = model_utils.Fusion_model(CFG)
+    elif CFG.fusion == 1:
+        model = model_utils.Fusion_model_PXL_ATTN(CFG)
+    elif CFG.fusion == 2:
+        model = model_utils.Fusion_model_CONCAT_ATTN(CFG)
+    elif CFG.fusion == 3:
+        model = model_utils.Fusion_model_CONCAT_ATTN_PIXELWISE(CFG)
+    elif CFG.fusion == 4:
+        model=model_utils.fusion_model_pxl_extralayers(CFG)
+    elif CFG.fusion == 5:
+        model=model_utils.CrossFusionModel(CFG)
+    elif CFG.fusion == 6:
+        model=model_utils.MultiheadFusionModel(CFG)
+    elif CFG.fusion == 7:
+        model=model_utils.CHN_ATTN(CFG)
+    elif CFG.fusion == 8:
+        model=model_utils.CombinedFusionModel(CFG)
+    elif CFG.fusion == 9:
+        model=model_utils.CombinedFusionModel2(CFG)
+    elif CFG.fusion == 10:
+        model=model_utils.EnhancedFusionModel(CFG)
+    elif CFG.fusion == 11:
+        model=model_utils.EnhancedFusionModel1(CFG)
+    elif CFG.fusion == 12:
+        model=model_utils.CrossAttentionFusion(CFG)
+    elif CFG.fusion == 13:
+        model=model_utils.CrossAttentionFusionBasic(CFG)
+        
     model = model.to(device)
     CFG.N_params = utae_utils.get_ntrainparams(model)
-    # print("TOTAL TRAINABLE PARAMETERS :", CFG.N_params)
+    print("TOTAL TRAINABLE PARAMETERS :", CFG.N_params)
     with open(os.path.join(CFG.run_path, "conf.json"), "w") as file:
         file.write(json.dumps(vars(CFG), indent=4))
 
@@ -411,7 +443,7 @@ def main(CFG):
         criterion = RMSELoss(ignore_index=CFG.ignore_index)
     best_checkpoint = torch.load(
         os.path.join(
-            CFG.best_path, "checkpoint_best.pth.tar"
+            CFG.best_path, "checkpoint_new.pth.tar"
         )
     )
     model.load_state_dict(best_checkpoint["model"])
@@ -448,6 +480,11 @@ def main(CFG):
             "val_mae": val_mae.item(),
             "val_mape": val_mape.item(),
         }
+        # log to a csv file with run name
+        vallog = {k: [v] for k, v in vallog.items()}
+        vallog = pd.DataFrame(vallog)
+        vallog.to_csv(os.path.join('val_results', f"{CFG.run_name}.csv"), index=False)
+        
         if CFG.wandb:
             wandb.log(vallog)
     # log model to wandb
@@ -489,6 +526,7 @@ if __name__ == "__main__":
     #     CFG.out_conv[-1] =  16
     # else:
     #     assert CFG.num_classes == CFG.out_conv[-1]
+
 
     CFG.run_path = f"runs/wacv_sickle_val/{CFG.exp_name}/{CFG.run_name}"
     satellite_metadata = {
