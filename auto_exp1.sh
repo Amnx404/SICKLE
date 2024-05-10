@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the base command
-BASE_CMD="python train.py --data_dir ./dataset --satellite [S1,S2,L8] --task crop_yield --model utae"
+BASE_CMD="python train.py --data_dir ./sickle_dataset/ --satellite [S1,S2,L8] --task crop_yield --model utae"
 
 # Array of fusion models and their corresponding names
 declare -A fusion_models
@@ -18,7 +18,7 @@ for fusion in "${!fusion_models[@]}"; do
         run_name="${fusion_models[$fusion]}_seed${seed}"
 
         # Build the full command
-        CMD="$BASE_CMD --fusion $fusion --run_name \"$run_name\" --seed $seed"
+        CMD="$BASE_CMD --fusion $fusion --run_name \"$run_name\" --seed $seed --num_workers 20"
 
         # Echo and run the command
         echo "Running: $CMD"
