@@ -887,7 +887,9 @@ class EnhancedFusionModel1(Build_model):
     
     
 #############################################################################
-
+# CROSS_ALL_NORM (Final 1)
+# plot gradients to see if they are vanishing
+# Rms norm
 class CrossAttentionFusionBasic(Build_model):
     def __init__(self, CFG):
         super(CrossAttentionFusionBasic, self).__init__(CFG)
@@ -1200,7 +1202,13 @@ class EnhancedFusionModel3(Build_model):
         return model
     
 ##########################################################################################
-
+# CROSS_ALL_NORM_DROP (Final 2)
+# scheduler visualise
+# normalisation
+# sattelite -> batch norm -> cross attention
+# val acc
+# trained weights
+# test set
 class CrossAttentionFusion(Build_model):
     def __init__(self, CFG):
         super(CrossAttentionFusion, self).__init__(CFG)
@@ -1335,3 +1343,77 @@ class MultiHeadCrossAttention(nn.Module):
         x = x.permute(0, 2, 1, 3).contiguous()
         new_shape = batch_size, -1, seq_len * depth  # flatten the last two dimensions
         return x.view(*new_shape)
+    
+    
+#######
+# New Model with Batch Norm
+
+class CrossAttentionFusion3(Build_model):
+    def __init__(self, CFG):
+        super(CrossAttentionFusion3, self).__init__(CFG)
+        self.CFG = CFG
+        self.models = nn.ModuleDict()
+        self.crossattention_modules = nn.ModuleDict()
+        self.attention_modules = nn.ModuleDict()
+        
+        # Initialize each satellite's model and multi-head self-attention module
+        for satellite in CFG.satellites.keys():
+            model = self.get_model(sat=satellite)
+            self.models[satellite] = model
+            cross_attention = MultiHeadCrossAttention(CFG.out_conv[-1], num_heads=4)
+            self.crossattention_modules[satellite] = cross_attention
+            self_attention = MultiHeadPixelAttention(CFG.out_conv[-1], num_heads=4)
+            self.attention_modules[satellite] = self_attention
+        
+        self.conv_final = nn.Conv2d(self.CFG.out_conv[-1], CFG.num_classes, kernel_size=3, stride=1, padding=1)
+        
+        # Replace LayerNorm with BatchNorm2d
+        self.bn = nn.BatchNorm2d(CFG.out_conv[-1])
+        
+        # Keep the dropout layer as is
+        self.dropout = nn.Dropout2d(0.2)
+
+    def forward(self, data):
+        y_preds = {}
+        
+        # First apply utae model
+        for satellite in self.CFG.satellites.keys():
+            (images, dates) = data[satellite]
+            y_pred = self.models[satellite](images, batch_positions=dates)
+            y_preds[satellite] = y_pred
+            
+        satellite_keys = list(y_preds.keys())
+        
+        enhanced_features = {}
+
+        # Perform cross-attention fusion for each satellite
+        for i in range(len(satellite_keys)):
+            fused_features = y_preds[satellite_keys[i]]  # Initialize with the first satellite's features
+            query = fused_features
+            for j in range(len(satellite_keys)):
+                if j != i:
+                    key = y_preds[satellite_keys[j]]
+                    value = y_preds[satellite_keys[j]]
+                    
+                    attended_value = self.crossattention_modules[satellite_keys[i]](query, key, value)
+                    attended_value = self.bn(attended_value)  # Apply BatchNorm2d instead of LayerNorm
+                    attended_value = self.dropout(attended_value)
+                    fused_features = fused_features + attended_value
+            enhanced_features[satellite_keys[i]] = fused_features
+
+        # Multihead attention fusion
+        attentions = {}
+        for satellite in self.CFG.satellites.keys():
+            attention_module = self.attention_modules[satellite]
+            attention = attention_module(enhanced_features[satellite])
+            
+            attentions[satellite] = attention
+
+        fused_features = torch.stack(list(enhanced_features.values()), dim=0)
+        attention_weights = torch.stack(list(attentions.values()), dim=0)
+        attention_weights = F.softmax(attention_weights, dim=0)
+
+        fused_features = (fused_features * attention_weights).sum(dim=0)
+        
+        y_pred = self.conv_final(fused_features)
+        return y_pred

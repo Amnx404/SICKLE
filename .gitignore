@@ -13,3 +13,6 @@ new_runs/*
 old_runs/*
 dataset_20_per/*
 dataset_50_per/*
+varchita_runs/
+runs_latest_valid/
+to_send*/

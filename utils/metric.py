@@ -17,7 +17,8 @@ class RMSELoss(nn.Module):
         yhat = yhat[y != self.ignore_index]
         y = y[y != self.ignore_index]
         loss = torch.sqrt(self.mse(yhat, y) + self.eps)
-        return loss
+        return loss 
+    #todo add l2 regulariser
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -54,7 +55,7 @@ def get_metrics(y_pred, y_true, pid_masks, ignore_index=-999, task="crop_type"):
 def get_regression_metrics(y_pred, y_true, pid_masks, ignore_index=-999, task=None):
     if task == "crop_yield":
         y_pred, y_true = get_combined_yield(y_pred, y_true, pid_masks)
-        mape = metrics["mape"](y_pred, y_true)
+        mape = metrics["mape"](y_pred, y_true) # mape calculation checkpoint 1
     else:
         mape = MAPE(y_pred, y_true, ignore_index=-999)
     # rmse already handles ignore index
@@ -84,6 +85,7 @@ def get_combined_yield(y_pred, y_true, pid_masks):
                     y_pred_temp = torch.cat((y_pred_temp,torch.sum(y_pred[i,pid_masks[i]==pid]).reshape(1)), dim=0)
                     y_true_temp = torch.cat((y_true_temp,torch.sum(y_true[i,pid_masks[i]==pid]).reshape(1)), dim=0)
     return y_pred_temp, y_true_temp
+    
 
 def MAPE(y_pred, y_true, ignore_index):
     y_pred = y_pred.view(-1)
@@ -92,4 +94,4 @@ def MAPE(y_pred, y_true, ignore_index):
     y_true = y_true[y_true != ignore_index]
     mae_metric = torch.nn.L1Loss(reduction="none")
     mae = mae_metric(y_pred, y_true)
-    return torch.mean(mae / 183.)
+    return torch.mean(mae / 183.) # mape calculation checkpoint 2

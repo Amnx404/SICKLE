@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
@@ -9,10 +7,12 @@ import os
 import plotly.graph_objs as go
 import plotly.express as px
 
+task = 'crop_yield'
+# task = 'harvesting_date'
 # Streamlit page configuration
 st.title('Crop Yield Validation MAPE Analysis')
 st.write('Select the training runs to display the Validation MAPE.')
-graph_names = ['mape', 'loss', 'mae']
+graph_names = ['mape', 'loss', 'mae', 'acc', 'f1']
 selected_graphs = st.multiselect('Choose runs', options=graph_names, default=['mape'])
 
 
@@ -35,7 +35,7 @@ def load_data(run_path, value_to_find ='val_mape', train=False):
 
 
 if selected_run_dir:
-    crop_yield_paths = glob.glob(f'../{run_type}/{selected_run_dir}/crop_yield/*')
+    crop_yield_paths = glob.glob(f'../{run_type}/{selected_run_dir}/{task}/*')
     run_names = [os.path.basename(run) for run in crop_yield_paths]
 
     # Options for datasets to filter runs
@@ -61,10 +61,11 @@ if selected_run_dir:
         for graph_name in selected_graphs:
             fig = go.Figure()  # Initialize a plotly figure
             min_mapes = []
+            max_mapes = []
             val_mapes = []
 
             for run in selected_runs:
-                full_path = os.path.join(f'../{run_type}/{selected_run_dir}/crop_yield', run)
+                full_path = os.path.join(f'../{run_type}/{selected_run_dir}/{task}', run)
                 epochs_v, val = load_data(full_path, value_to_find=graph_name, train=False)
                 epochs_t, train = load_data(full_path, value_to_find=graph_name, train=True)
                 
@@ -77,6 +78,7 @@ if selected_run_dir:
                 fig.add_trace(go.Scatter(x=epochs_t[2:], y=train[2:], mode='lines+markers', name=f'Run {run} - Train'))
 
                 min_mapes.append((run, min(val)))
+                max_mapes.append((run, max(val)))
                 val_mapes.append(val)
 
             # Update layout for the figure
@@ -95,7 +97,7 @@ if selected_run_dir:
             last_mapes = [(run, val_mape[-1]) for run, val_mape in zip(selected_runs, val_mapes)]
 
             # Combine the minimum and last MAPE values into a single list of tuples
-            min_and_last_mapes = [(min_mape[0], min_mape[1], last_mape[1]) for min_mape, last_mape in zip(min_mapes, last_mapes)]
+            min_and_last_mapes = [(min_mape[0], min_mape[1], last_mape[1], max_mape[1]) for min_mape, last_mape, max_mape in zip(min_mapes, last_mapes, max_mapes)]
 
             # Display minimum and last MAPE for each run in a table
             st.write("Minimum and Last MAPE for each run:")

@@ -433,6 +433,8 @@ def main(CFG):
         model=model_utils.CrossAttentionFusion(CFG)
     elif CFG.fusion == 13:
         model=model_utils.CrossAttentionFusionBasic(CFG)
+    elif CFG.fusion == 14:
+        model=model_utils.CrossAttentionFusion3(CFG)
         
     model.apply(weight_init)
     model = model.to(device)
@@ -562,7 +564,7 @@ def main(CFG):
                 ),
             )
             
-        if epoch <= 70:
+        if epoch <= 100:
             torch.save(
                 save_dict,
                 os.path.join(
@@ -646,10 +648,10 @@ def main(CFG):
     if CFG.wandb:
         best = wandb.Artifact('checkpoint_best', type='model')
         best.add_file(os.path.join(CFG.run_path, "checkpoint_best.pth.tar"))
-        last = wandb.Artifact('checkpoint_last', type='model')
-        last.add_file(os.path.join(CFG.run_path, "checkpoint_last.pth.tar"))
+        # last = wandb.Artifact('checkpoint_last', type='model')
+        # last.add_file(os.path.join(CFG.run_path, "checkpoint_last.pth.tar"))
         wandb.log_artifact(best)
-        wandb.log_artifact(last)
+        # wandb.log_artifact(last)
 
 
 if __name__ == "__main__":
@@ -717,7 +719,7 @@ if __name__ == "__main__":
         wandb.login()
         run = wandb.init(
             project=f"wacv_2024_seed{CFG.seed}",
-            entity="agrifieldnet",
+            entity="amanex",
             config={k: v for k, v in dict(vars(CFG)).items() if "__" not in k},
             name=CFG.run_name,
             group=CFG.exp_name,
