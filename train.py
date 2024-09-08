@@ -608,6 +608,14 @@ def main(CFG):
 
     if CFG.wandb:
         wandb.log({f"{CFG.primary_sat}_val_prediction": wandb_table})
+        
+    if CFG.wandb:
+        best = wandb.Artifact('checkpoint_best', type='model')
+        best.add_file(os.path.join(CFG.run_path, "checkpoint_best.pth.tar"))
+        # last = wandb.Artifact('checkpoint_last', type='model')
+        # last.add_file(os.path.join(CFG.run_path, "checkpoint_last.pth.tar"))
+        wandb.log_artifact(best)
+        # wandb.log_artifact(last)
 
     test_loss, test_metrics, wandb_table = iterate(
         model,

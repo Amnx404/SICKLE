@@ -15,7 +15,7 @@ datasets=( "dataset_50_per")
 # Array of tasks
 tasks=( "crop_type" "harvesting_date" "sowing_date")
 # "crop_type" "harvesting_date"
-for seed in {0..1}; do
+for seed in {2..3}; do
     for data_dir in "${datasets[@]}"; do
 
         for task in "${tasks[@]}"; do
