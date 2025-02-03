@@ -1282,7 +1282,7 @@ class CrossAttentionFusion(Build_model):
         # fused_features = fused_features.mean(dim=0)
         
         y_pred = self.conv_final(fused_features)
-        return y_pred
+        return y_pred, attention_weights
 
 class MultiHeadCrossAttention(nn.Module):
     def __init__(self, num_features, num_heads):
@@ -1412,8 +1412,10 @@ class CrossAttentionFusion3(Build_model):
         fused_features = torch.stack(list(enhanced_features.values()), dim=0)
         attention_weights = torch.stack(list(attentions.values()), dim=0)
         attention_weights = F.softmax(attention_weights, dim=0)
+        attention_weights_return = torch.stack(list(attentions.values()), dim=1)
+        attention_weights_return = F.softmax(attention_weights_return, dim=1)
 
         fused_features = (fused_features * attention_weights).sum(dim=0)
         
         y_pred = self.conv_final(fused_features)
-        return y_pred
+        return y_pred, attention_weights_return

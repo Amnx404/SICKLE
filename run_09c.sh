@@ -5,17 +5,17 @@ BASE_CMD="python train.py --satellite [S1,S2,L8] --model unet3d --wandb"
 
 # Array of fusion models and their corresponding names
 declare -A fusion_models
-fusion_models[0]="CONCAT"
+# fusion_models[0]="CONCAT"
 fusion_models[14]="CROSS_ALL_NORM_BATCH_DROP"
 # fusion_models[12]="CROSS_ALL_NORM_DROP"
 
 # Array of datasets
-datasets=( "dataset_50_per")
+datasets=( "dataset")
 
 # Array of tasks
-tasks=( "crop_type" "harvesting_date" "sowing_date")
+tasks=( "crop_type" )
 # "crop_type" "harvesting_date"
-for seed in {2..3}; do
+for seed in {2..2}; do
     for data_dir in "${datasets[@]}"; do
 
         for task in "${tasks[@]}"; do
