@@ -187,10 +187,12 @@ def iterate(
             masks = masks.float()
         if mode != "train":
             with torch.no_grad():
-                y_pred = model(data)
+                # y_pred = model(data)
+                y_pred, at = model(data)
         else:
             optimizer.zero_grad()
-            y_pred = model(data)
+            # y_pred = model(data)
+            y_pred, _ = model(data)
         if task == "crop_yield":
             loss = criterion(y_pred, masks, plot_mask)
         else:
@@ -240,8 +242,13 @@ def iterate(
             _task = task
             if CFG.actual_season:
                 _task = task + "_season"
-            log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_dates, masks, y_pred,
-                                 wandb_table, CFG.seed, batch_id=i, task=_task,CFG=CFG)
+                
+            if mode != "train":
+                log_val_predictions_at(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_dates, masks, y_pred,
+                                    wandb_table, CFG.seed, batch_id=i, task=_task,CFG=CFG, attention=at)
+            else:
+                log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_dates, masks, y_pred,
+                                     wandb_table, CFG.seed, batch_id=i, task=_task,CFG=CFG)
 
         loss_meter.add(loss.item())
 
@@ -251,6 +258,7 @@ def iterate(
             Loss=f"{loss.item():0.4f}",
             gpu_mem=f"{mem:0.2f} GB",
         )
+    # print(at.shape)
     # take scheduler step
     if scheduler is not None and epoch < 3 * CFG.epochs // 4:
         scheduler.step()
@@ -332,12 +340,12 @@ def log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_
         s1_image = ((s1_image - np.min(s1_image)) / (np.max(s1_image) - np.min(s1_image)))
 
         # log whole prediction mask
-        os.makedirs(f"val_results/seed{seed}/val/{task}", exist_ok=True)
-        if task == "crop_type":
-            np.save(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}.npy", pred_mask)
-        else:
-            crop_type_mask = np.load(f"val_results/seed{seed}/val/crop_type/{batch_id}_{i}.npy")
-            pred_mask[crop_type_mask <= 0.5] = -1
+        os.makedirs(f"val_results/seed{seed}/val/{task}/{CFG.fusion}", exist_ok=True)
+        # if task != "crop_type":
+        #     np.save(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}.npy", pred_mask)
+        # else:
+        #     crop_type_mask = np.load(f"val_results/seed{seed}/val/crop_type/{CFG.fusion}/{batch_id}_{i}.npy")
+        #     pred_mask[crop_type_mask <= 0.5] = -1
         pred_mask_whole = generate_heatmap(copy.deepcopy(pred_mask))
         pred_mask[gt_mask == -1] = -1
         pred_mask = generate_heatmap(copy.deepcopy(pred_mask))
@@ -346,12 +354,12 @@ def log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_
             gt_mask[gt_mask == 1] = 0
             gt_mask[gt_mask == 2] = 1
         gt_mask = generate_heatmap(copy.deepcopy(gt_mask))
-        plt.imsave(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_L8.png", l8_image)
-        plt.imsave(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_S2.png", s2_image)
-        plt.imsave(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_S1.png", s1_image)
-        plt.imsave(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_ground_truth.png", gt_mask)
-        plt.imsave(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_pred_mask_whole.png", pred_mask_whole)
-        plt.imsave(f"val_results/seed{seed}/val/{task}/{batch_id}_{i}_pred_mask.png", pred_mask)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_L8.pdf", l8_image)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_S2.pdf", s2_image)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_S1.pdf", s1_image)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_ground_truth.pdf", gt_mask)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_pred_mask_whole.pdf", pred_mask_whole)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_pred_mask.pdf", pred_mask)
         i += 1
 
         val_table.add_data(wandb.Image(l8_image), wandb.Image(s2_image), wandb.Image(s1_image), wandb.Image(gt_mask),
@@ -360,6 +368,91 @@ def log_val_predictions(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_
         if _id == n_log:
             break
 
+def log_val_predictions_at(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_dates, gt_masks, pred_masks,
+                         val_table, seed, batch_id=None, CFG=None, task="crop_type", attention=None):
+    _id = 0
+    # print(gt_masks.shape,pred_masks.shape)
+    # pred_masks[pred_masks == 1] = 128
+    gt_masks[gt_masks == -999] = -1
+    gt_masks[gt_masks < -1] = 0
+
+
+    # print(np.unique(pred_masks))
+    i = 0
+    print("unique", torch.unique(attention))
+    for l8_sample, s2_sample, s1_sample, l8_sample_dates, s2_sample_dates, s1_sample_dates, gt_mask, pred_mask, at in \
+            zip(l8_images, s2_images, s1_images, l8_dates, s2_dates, s1_dates, gt_masks, pred_masks, attention):
+        # print("unique", torch.unique(at))
+        # if i == 9:
+        #     for x, (l8_image, s1_image, s2_image) in enumerate(zip(l8_sample, s1_sample, s2_sample)):
+        #         l8_image = l8_image[
+        #             CFG.satellites["L8" if len(CFG.satellites) == 3 else CFG.primary_sat]["rgb_bands"]].transpose(1, 2,
+        #                                                                                                           0)
+        #         l8_image = ((l8_image - np.min(l8_image)) / (np.max(l8_image) - np.min(l8_image)))
+        #         s2_image = s2_image[
+        #             CFG.satellites["S2" if len(CFG.satellites) == 3 else CFG.primary_sat]["rgb_bands"]].transpose(1, 2,
+        #                                                                                                           0)
+        #         s2_image = ((s2_image - np.min(s2_image)) / (np.max(s2_image) - np.min(s2_image)))
+        #         s1_image = s1_image[
+        #             CFG.satellites["S1" if len(CFG.satellites) == 3 else CFG.primary_sat]["rgb_bands"]].transpose(1, 2,
+        #                                                                                                           0)
+        #         s1_image = ((s1_image - np.min(s1_image)) / (np.max(s1_image) - np.min(s1_image)))
+        #         plt.imsave(f"val_results/seed2/{task}/{batch_id}_{i}_{x}_L8.png", l8_image)
+        #         plt.imsave(f"val_results/seed2/{task}/{batch_id}_{i}_{x}_S2.png", s2_image)
+        #         plt.imsave(f"val_results/seed2/{task}/{batch_id}_{i}_{x}_S1.png", s1_image)
+
+        # get last available image
+        l8_image = l8_sample[len(l8_sample_dates[l8_sample_dates != 0]) - 1]
+        # reshape and normalize image
+        l8_image = l8_image[CFG.satellites["L8" if len(CFG.satellites) == 3 else CFG.primary_sat]["rgb_bands"]].transpose(1, 2, 0)
+        l8_image = ((l8_image - np.min(l8_image)) / (np.max(l8_image) - np.min(l8_image)))
+
+        s2_image = s2_sample[len(s2_sample_dates[s2_sample_dates != 0]) - 1]
+        # reshape and normalize image
+        s2_image = s2_image[CFG.satellites["S2" if len(CFG.satellites) == 3 else CFG.primary_sat]["rgb_bands"]].transpose(1, 2, 0)
+        s2_image = ((s2_image - np.min(s2_image)) / (np.max(s2_image) - np.min(s2_image)))
+
+        s1_image = s1_sample[len(s1_sample_dates[s1_sample_dates != 0]) - 1]
+        # reshape and normalize image
+        s1_image = s1_image[CFG.satellites["S1" if len(CFG.satellites) == 3 else CFG.primary_sat]["rgb_bands"]].transpose(1, 2, 0)
+        s1_image = ((s1_image - np.min(s1_image)) / (np.max(s1_image) - np.min(s1_image)))
+
+        # log whole prediction mask
+        os.makedirs(f"val_results/seed{seed}/val/{task}/{CFG.fusion}", exist_ok=True)
+        # if task != "crop_type":
+        #     np.save(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}.npy", pred_mask)
+        # else:
+        #     crop_type_mask = np.load(f"val_results/seed{seed}/val/crop_type/{CFG.fusion}/{batch_id}_{i}.npy")
+        #     pred_mask[crop_type_mask <= 0.5] = -1
+        pred_mask_whole = generate_heatmap(copy.deepcopy(pred_mask))
+        pred_mask[gt_mask == -1] = -1
+        pred_mask = generate_heatmap(copy.deepcopy(pred_mask))
+        if task == "crop_type":
+            gt_mask[gt_mask == 0] = 2
+            gt_mask[gt_mask == 1] = 0
+            gt_mask[gt_mask == 2] = 1
+        gt_mask = generate_heatmap(copy.deepcopy(gt_mask))
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_L8.pdf", l8_image)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_S2.pdf", s2_image)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_S1.pdf", s1_image)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_ground_truth.pdf", gt_mask)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_pred_mask_whole.pdf", pred_mask_whole)
+        plt.imsave(f"val_results/seed{seed}/val/{task}/{CFG.fusion}/{batch_id}_{i}_pred_mask.pdf", pred_mask)
+        # print the mean attention for the three satellites
+        # print(f"Mean Attention for L8: {np.mean(at[0].cpu().numpy())}")
+        # print(f"Mean Attention for S2: {np.mean(at[1].cpu().numpy())}")
+        # print(f"Mean Attention for S1: {np.mean(at[2].cpu().numpy())}")
+        print(f"Mean Attention of S1 Enhanced: {torch.mean(at[0])}")
+        print(f"Mean Attention of S2 Enhanced: {torch.mean(at[1])}")
+        print(f"Mean Attention of L8 Enhanced: {torch.mean(at[2])}")
+        # print(at)
+        i += 1
+
+        val_table.add_data(wandb.Image(l8_image), wandb.Image(s2_image), wandb.Image(s1_image), wandb.Image(gt_mask),
+                            wandb.Image(pred_mask), wandb.Image(pred_mask_whole))
+        _id += 1
+        if _id == n_log:
+            break
 
 def main(CFG):
     prepare_output(CFG)

@@ -16,3 +16,5 @@ dataset_50_per/*
 varchita_runs/
 runs_latest_valid/
 to_send*/
+*.tar
+/backup/*
