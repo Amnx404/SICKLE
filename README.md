@@ -1,9 +1,8 @@
-
 <a href="https://colab.research.google.com/drive/1vKxH3JJ6TLv63y3kwTZ7VQzVo2EJPZqg#scrollTo=1mbkt9ohRPDh" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in Colab"/></a>
 
 # Enhancing Adaptive Multi-Sensor Satellite Fusion for Robust Agricultural Prediction
 
-This repository contains the official implementation for our research on adaptive multi-sensor fusion for agricultural prediction. [cite_start]Our work began with the creation of the **SICKLE dataset (WACV 2024)** [cite: 1294] to provide a robust foundation for multi-sensor analysis. [cite_start]We then developed an advanced **Multi-Head Cross Fusion model (WACV 2025 Submission)** that significantly outperforms baseline models, especially under challenging conditions like cloud cover[cite: 1157, 1158, 1159].
+This repository contains the official implementation for our research on adaptive multi-sensor fusion for agricultural prediction. Our work began with the creation of the **SICKLE dataset (WACV 2024)** to provide a robust foundation for multi-sensor analysis. We then developed an advanced **Multi-Head Cross Fusion model (WACV 2025 Submission)** that significantly outperforms baseline models, especially under challenging conditions like cloud cover.
 
 **[SICKLE Website](https://sites.google.com/iiitd.ac.in/sickle/) | [SICKLE Paper (WACV 2024)](https://openaccess.thecvf.com/content/WACV2024/html/Sani_SICKLE_A_Multi-Sensor_Satellite_Imagery_Dataset_Annotated_With_Multiple_Key_WACV_2024_paper.html) | [SICKLE Video](https://www.youtube.com/watch?v=2p4BDVLrmdw) | [Request Dataset Access](https://docs.google.com/forms/d/e/1FAIpQLSdq7Dcj5FF1VmlKozrQ7XNoq006iVKrUIMTK2jReBJDuO1N2g/viewform)**
 
@@ -11,9 +10,9 @@ This repository contains the official implementation for our research on adaptiv
 
 ## The Challenge & Our Solution 🎯
 
-Accurate agricultural forecasting using satellite imagery is often hindered by real-world challenges. [cite_start]A primary issue is **cloud cover**, which obscures the ground and makes optical data from satellites like Sentinel-2 and Landsat-8 unreliable[cite: 209, 81]. While initial models on our SICKLE dataset used simple concatenation, this method struggles when one data source is compromised.
+Accurate agricultural forecasting using satellite imagery is often hindered by real-world challenges. A primary issue is **cloud cover**, which obscures the ground and makes optical data from satellites like Sentinel-2 and Landsat-8 unreliable. While initial models on our SICKLE dataset used simple concatenation, this method struggles when one data source is compromised.
 
-To solve this, we developed a novel **Multi-Head Cross Fusion** architecture. [cite_start]This model moves beyond simple data merging and instead learns to **adaptively fuse** information from multiple sensors, dynamically prioritizing the most reliable data at any given time[cite: 377, 80].
+To solve this, we developed a novel **Multi-Head Cross Fusion** architecture. This model moves beyond simple data merging and instead learns to **adaptively fuse** information from multiple sensors, dynamically prioritizing the most reliable data at any given time.
 
 
 
@@ -21,11 +20,11 @@ To solve this, we developed a novel **Multi-Head Cross Fusion** architecture. [c
 
 Our model's strength comes from its sophisticated fusion pipeline that intelligently combines radar and optical data.
 
-1.  [cite_start]**Spatio-Temporal Encoding**: First, time-series data from each satellite (**Sentinel-1**, **Sentinel-2**, **Landsat-8**) is processed by its own encoder to extract deep spatial and temporal features[cite: 384, 385].
+1.  **Spatio-Temporal Encoding**: First, time-series data from each satellite (**Sentinel-1**, **Sentinel-2**, **Landsat-8**) is processed by its own encoder to extract deep spatial and temporal features.
 
-2.  **Cross-Attention Mechanism**: This is the core of our model. Instead of just combining features, we use cross-attention to make them interact. [cite_start]The features from one satellite (e.g., Sentinel-1) are used to query and refine the features from the other satellites (e.g., Sentinel-2 and Landsat-8)[cite: 571, 572]. This enriches each satellite's data with context from the others, creating a much more powerful representation.
+2.  **Cross-Attention Mechanism**: This is the core of our model. Instead of just combining features, we use cross-attention to make them interact. The features from one satellite (e.g., Sentinel-1) are used to query and refine the features from the other satellites (e.g., Sentinel-2 and Landsat-8). This enriches each satellite's data with context from the others, creating a much more powerful representation.
 
-3.  **Adaptive Fusion**: The enhanced feature maps are then combined using a multi-head attention module. This allows the model to weigh the importance of each data source. [cite_start]If Sentinel-2 data is cloudy (less informative), the model automatically learns to rely more heavily on the clean radar data from Sentinel-1 to make its prediction[cite: 81, 1159].
+3.  **Adaptive Fusion**: The enhanced feature maps are then combined using a multi-head attention module. This allows the model to weigh the importance of each data source. If Sentinel-2 data is cloudy (less informative), the model automatically learns to rely more heavily on the clean radar data from Sentinel-1 to make its prediction.
 
 ---
 
@@ -45,14 +44,14 @@ When trained on the complete dataset, our Cross Fusion model set a new state-of-
 
 ### Robustness Under Cloud Cover
 
-[cite_start]We simulated cloud cover by removing **50% of the optical data** (Sentinel-2, Landsat-8) from the training set[cite: 728]. Our fusion model demonstrated remarkable resilience, maintaining high accuracy where the baseline model struggled.
+We simulated cloud cover by removing **50% of the optical data** (Sentinel-2, Landsat-8) from the training set. Our fusion model demonstrated remarkable resilience, maintaining high accuracy where the baseline model struggled.
 
 | Task         | Metric    | Concatenation Model | **Our Cross Fusion Model** |
 | :----------- | :-------- | :------------------ | :------------------------- |
 | **Crop Type** | IoU%      | 87.85               | **90.59** |
 | **Harvest Date**| MAE       | 10.06               | **8.89** |
 
-[cite_start]Notably, our fusion model's performance on the **occluded dataset** was still superior to the baseline model trained on the **full dataset** for harvest date prediction (8.89 MAE vs. 10.75 MAE)[cite: 1136]. This proves its effectiveness in real-world, imperfect conditions.
+Notably, our fusion model's performance on the **occluded dataset** was still superior to the baseline model trained on the **full dataset** for harvest date prediction (8.89 MAE vs. 10.75 MAE). This proves its effectiveness in real-world, imperfect conditions.
 
 ---
 
