@@ -1,135 +1,113 @@
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/sickle-a-multi-sensor-satellite-imagery/crop-yield-prediction-on-sickle)](https://paperswithcode.com/sota/crop-yield-prediction-on-sickle?p=sickle-a-multi-sensor-satellite-imagery)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/sickle-a-multi-sensor-satellite-imagery/sowing-date-prediction-on-sickle)](https://paperswithcode.com/sota/sowing-date-prediction-on-sickle?p=sickle-a-multi-sensor-satellite-imagery)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/sickle-a-multi-sensor-satellite-imagery/harvesting-date-prediction-on-sickle)](https://paperswithcode.com/sota/harvesting-date-prediction-on-sickle?p=sickle-a-multi-sensor-satellite-imagery)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/sickle-a-multi-sensor-satellite-imagery/transplanting-date-prediction-on-sickle)](https://paperswithcode.com/sota/transplanting-date-prediction-on-sickle?p=sickle-a-multi-sensor-satellite-imagery)
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/sickle-a-multi-sensor-satellite-imagery/crop-type-mapping-on-sickle)](https://paperswithcode.com/sota/crop-type-mapping-on-sickle?p=sickle-a-multi-sensor-satellite-imagery)
 
 <a href="https://colab.research.google.com/drive/1vKxH3JJ6TLv63y3kwTZ7VQzVo2EJPZqg#scrollTo=1mbkt9ohRPDh" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in Colab"/></a>
-# SICKLE: A Multi-Sensor Satellite Imagery Dataset Annotated with Multiple Key Cropping Parameters (Oral Presentation, WACV 2024)
-This is the official implementation of **_[SICKLE: A Multi-Sensor Satellite Imagery Dataset Annotated with Multiple Key Cropping Parameters](https://sites.google.com/iiitd.ac.in/sickle/home)_**.
 
-[Depanshu Sani](https://sites.google.com/iiitd.ac.in/depanshu-sani/), [Sandeep Mahato](https://in.linkedin.com/in/sandeep-mahato-66569233), [Sourabh Saini](https://in.linkedin.com/in/sourabh7211), [Harsh Kumar Agarwal](https://www.linkedin.com/in/harsh-kumar-agarwal-b8bb92187), [Charu Chandra Devshali](https://www.linkedin.com/in/charu-chandra-devshali-18779a188/), [Saket Anand](https://faculty.iiitd.ac.in/~anands/), [Gaurav Arora](https://gauravaroraecon.wordpress.com/), [Thiagarajan Jayaraman](https://in.linkedin.com/in/thiagarajan-jayaraman-32407810); _In Proceedings of IEEE/CVF Winter Conference on Applications of Computer Vision (WACV) 2024._
+# Enhancing Adaptive Multi-Sensor Satellite Fusion for Robust Agricultural Prediction
 
-** _This repository is managed by [Sourabh Saini](https://in.linkedin.com/in/sourabh7211). For code-related queries or issues, we recommend opening a GitHub issue or reaching out via email at sourabh19113@iiitd.ac.in. For any other queries, please email us at depanshus@iiitd.ac.in_**
+This repository contains the official implementation for our research on adaptive multi-sensor fusion for agricultural prediction. [cite_start]Our work began with the creation of the **SICKLE dataset (WACV 2024)** [cite: 1294] to provide a robust foundation for multi-sensor analysis. [cite_start]We then developed an advanced **Multi-Head Cross Fusion model (WACV 2025 Submission)** that significantly outperforms baseline models, especially under challenging conditions like cloud cover[cite: 1157, 1158, 1159].
 
-## 
+**[SICKLE Website](https://sites.google.com/iiitd.ac.in/sickle/) | [SICKLE Paper (WACV 2024)](https://openaccess.thecvf.com/content/WACV2024/html/Sani_SICKLE_A_Multi-Sensor_Satellite_Imagery_Dataset_Annotated_With_Multiple_Key_WACV_2024_paper.html) | [SICKLE Video](https://www.youtube.com/watch?v=2p4BDVLrmdw) | [Request Dataset Access](https://docs.google.com/forms/d/e/1FAIpQLSdq7Dcj5FF1VmlKozrQ7XNoq006iVKrUIMTK2jReBJDuO1N2g/viewform)**
 
-**[Website](https://sites.google.com/iiitd.ac.in/sickle/) | 
-[Paper](https://openaccess.thecvf.com/content/WACV2024/html/Sani_SICKLE_A_Multi-Sensor_Satellite_Imagery_Dataset_Annotated_With_Multiple_Key_WACV_2024_paper.html) | 
-[Poster](https://drive.google.com/file/d/1kG_77d3R3upy1b4Ia8B_gOLvtAsCAk30/view) | 
-[Video](https://www.youtube.com/watch?v=2p4BDVLrmdw) |
-[Dataset](https://docs.google.com/forms/d/e/1FAIpQLSdq7Dcj5FF1VmlKozrQ7XNoq006iVKrUIMTK2jReBJDuO1N2g/viewform)**
+---
 
-**_SICKLE_** is a unique collection of multi-resolution time-series images from Landsat-8, Sentinel-1, and Sentinel-2 satellites. The dataset covers the period from January 2018 to March 2021 and includes optical, thermal, and microwave sensor data. It is focused on paddy cultivation in the Cauvery Delta region of Tamil Nadu, India, where each temporal sequence is prepared based on the cropping practices adopted by the farmers in that region. Annotations for multiple key cropping parameters are provided at 3m, 10m, and 30m resolutions, enabling diverse analyses.
+## The Challenge & Our Solution 🎯
 
-<p align="center">
-  <img src="img/SICKLE-Overview.png" width=70% >
-</p>
+Accurate agricultural forecasting using satellite imagery is often hindered by real-world challenges. [cite_start]A primary issue is **cloud cover**, which obscures the ground and makes optical data from satellites like Sentinel-2 and Landsat-8 unreliable[cite: 209, 81]. While initial models on our SICKLE dataset used simple concatenation, this method struggles when one data source is compromised.
+
+To solve this, we developed a novel **Multi-Head Cross Fusion** architecture. [cite_start]This model moves beyond simple data merging and instead learns to **adaptively fuse** information from multiple sensors, dynamically prioritizing the most reliable data at any given time[cite: 377, 80].
 
 
-### Overview of the dataset
-| Feature                                | Details                                             |
-|----------------------------------------|-----------------------------------------------------|
-| Study Region                           | Cauvery Delta Region, Tamil Nadu, India             |
-| Multiple Cropping Parameters Available | Crop Type, Crop Variety, Growing Season, Crop Yield |
-| Benchmarked Tasks <br />(Using U-TAE, U-Net3D and ConvLSTM) | 1. Binary Crop Type Mapping <br /> 2. Sowing Date Prediction <br />3. Transplanting Date Prediction<br />4. Harvesting Date Prediction<br />5. Crop Yield Prediction  |
-| Other Tasks Possible <br />(Not Benchmarked) | 1. Panoptic Segmentation<br />2. Synthetic Band Generation<br />3. Image Super-Resolution<br />4. Multi-Task Learning<br />5. High-Resolution Prediction using Low-Resolution Images<br />6. Cross-Satellite Sensor Fusion Methods  |
-| Time-Span of the Study                 | Jan 2018 - Mar 2021                                 |
-| Time-Span of Field Data Collection     | January 2021 - February 2022                        |
-| Field Data Collection Methodology      | Ground-based surveys                                |
-| Time-Series Data Preparation Strategy  | Based on regional growing seasons of paddy cultivation |
-| # Unique plots surveyed                | 388                                                 |
-| # Time-Series Sequences (Samples)      | 2370                                                |
-| # Satellite Images                     | ~209,000                                            |
-| Average Area of Plots                  | 0.38 acres                                          |
-| # Types of Crops                       | 21                                                  |
-| Satellites Used                        | Landsat-8, Sentinel-1, Sentinel-2                   |
-| Modalities                             | Optical, Thermal and Microwave                      |
-| Annotation Resolution (Spatial)        | 3m, 10m and 30m                                        |
 
-### Comparison with other datasets
-<img src="img/2.png" width=65% />
+### Architecture Deep Dive 🛠️
 
-A comparison of SICKLE with the related datasets (SUSTAINBENCH [31], Radiant ML Hub [5], Agriculture-Vision [2], PixelSet [21], PASTIS-R [20] and Crop Harvest [26])) based on the tasks that can be performed using them. The bottom 4 tasks are not only related to the agricultural domain but are also applicable for remote sensing community.
+Our model's strength comes from its sophisticated fusion pipeline that intelligently combines radar and optical data.
 
-## Benchmarked Results
-<img src="img/4.png" width=70% />
+1.  [cite_start]**Spatio-Temporal Encoding**: First, time-series data from each satellite (**Sentinel-1**, **Sentinel-2**, **Landsat-8**) is processed by its own encoder to extract deep spatial and temporal features[cite: 384, 385].
 
-Results for the benchmarking tasks. Single-image experiments are denoted with SI in parenthesis. The results are reported using the same benchmarking model (U-Net 3D for time-series and U-Net 2D for single image) for a fair comparison. RS denotes the experiment when using Regional Standards to create the time-series input, whereas AS denotes the one using Actual Season. **_The results presented in the paper are on the test set. We are withholding the test set for now but have shared the evaluation scripts used for the test set so that the evaluation can be performed on the validation set._**
+2.  **Cross-Attention Mechanism**: This is the core of our model. Instead of just combining features, we use cross-attention to make them interact. [cite_start]The features from one satellite (e.g., Sentinel-1) are used to query and refine the features from the other satellites (e.g., Sentinel-2 and Landsat-8)[cite: 571, 572]. This enriches each satellite's data with context from the others, creating a much more powerful representation.
 
+3.  **Adaptive Fusion**: The enhanced feature maps are then combined using a multi-head attention module. This allows the model to weigh the importance of each data source. [cite_start]If Sentinel-2 data is cloudy (less informative), the model automatically learns to rely more heavily on the clean radar data from Sentinel-1 to make its prediction[cite: 81, 1159].
 
-## SICKLE Dataset download
-Please fill out this [form](https://docs.google.com/forms/d/e/1FAIpQLSdq7Dcj5FF1VmlKozrQ7XNoq006iVKrUIMTK2jReBJDuO1N2g/viewform) to gain access to the full and the toy dataset, pre-trained weights and other related files. 
+---
 
+## Performance & Results 📊
 
-## Dependencies
-Please install all the dependencies using the following command:
-```setup
+We validated our model on the SICKLE dataset against a standard concatenation baseline. The results confirm our model is more accurate and significantly more resilient to data loss.
+
+### Performance on Full Dataset
+
+When trained on the complete dataset, our Cross Fusion model set a new state-of-the-art for crop type, harvest date, and crop yield prediction.
+
+| Task         | Metric | Concatenation Model | **Our Cross Fusion Model** |
+| :----------- | :----- | :------------------ | :------------------------- |
+| **Crop Type** | IoU%   | $81.07 \pm 5.77$    | **$86.25 \pm 2.31$** |
+| **Harvest Date** | MAE    | $10.75 \pm 3.39$    | **$8.63 \pm 0.35$** |
+| **Crop Yield** | MAPE%  | $49.63 \pm 7.95$    | **$46.06 \pm 0.72$** |
+
+### Robustness Under Cloud Cover
+
+[cite_start]We simulated cloud cover by removing **50% of the optical data** (Sentinel-2, Landsat-8) from the training set[cite: 728]. Our fusion model demonstrated remarkable resilience, maintaining high accuracy where the baseline model struggled.
+
+| Task         | Metric    | Concatenation Model | **Our Cross Fusion Model** |
+| :----------- | :-------- | :------------------ | :------------------------- |
+| **Crop Type** | IoU%      | 87.85               | **90.59** |
+| **Harvest Date**| MAE       | 10.06               | **8.89** |
+
+[cite_start]Notably, our fusion model's performance on the **occluded dataset** was still superior to the baseline model trained on the **full dataset** for harvest date prediction (8.89 MAE vs. 10.75 MAE)[cite: 1136]. This proves its effectiveness in real-world, imperfect conditions.
+
+---
+
+## Getting Started
+
+### Dataset Download
+Please fill out this [form](https://docs.google.com/forms/d/e/1FAIpQLSdq7Dcj5FF1VmlKozrQ7XNoq006iVKrUIMTK2jReBJDuO1N2g/viewform) to gain access to the SICKLE dataset, pre-trained weights, and other files.
+
+### Dependencies
+Install all dependencies using the following command:
+```bash
 pip install -r requirements.txt
-```
+````
 
+### Inference with Pre-trained Models
 
-## Inference with pre-trained models
+After receiving access, download and unzip `weights.zip` into the root directory. You will have a `runs` folder. Use the following commands to run inference.
 
-After filling out the form provided above, you will gain access to the `weights.zip` file. Unzip this file inside `sickle` directory. Once uncompressed, you should have a `runs` folder, resembling the directory structure as below:
+  * **Example (UTAE Fusion)**: `./evaluate.sh <path_to_data> [S1,S2,L8] utae`
 
-<img src="img/dir_structure.png" width=30% />
-Once you have the weights, use below commands for reproducing results. 
+### Training Models from Scratch
 
-| **Model**      | **Satellite**                         | **Command**                             |
-|----------------|-----------------------------------------|-----------------------------------------|
-| **3D U-Net**   | S1     | `./evaluate.sh <path_to_data> [S1] unet3d`   |
-|                | S2     | `./evaluate.sh <path_to_data> [S2] unet3d`   |
-|                | L8     | `./evaluate.sh <path_to_data> [L8] unet3d`   |
-|                |Fusion  | `./evaluate.sh <path_to_data> [S1,S2,L8] unet3d` |
-| **UTAE**   | S1     | `./evaluate.sh <path_to_data> [S1] utae`   |
-|                | S2     | `./evaluate.sh <path_to_data> [S2] utae`   |
-|                | L8     | `./evaluate.sh <path_to_data> [L8] utae`   |
-|                |Fusion  | `./evaluate.sh <path_to_data> [S1,S2,L8] utae` |
-| **ConvLSTM**   | S1     | `./evaluate.sh <path_to_data> [S1] convlstm`   |
-|                | S2     | `./evaluate.sh <path_to_data> [S2] convlstm`   |
-|                | L8     | `./evaluate.sh <path_to_data> [L8] convlstm`   |
-|                |Fusion  | `./evaluate.sh <path_to_data> [S1,S2,L8] convlstm` |
+Use the following commands to train a model from scratch.
 
+  * **Example (UTAE Fusion)**: `./train.sh <path_to_data> [S1,S2,L8] utae`
 
+-----
 
+## Citation
 
-## Training models from scratch
+If you use our dataset or models in your research, please cite our papers:
 
-| **Model**      | **Satellite**                         | **Command**                             |
-|----------------|-----------------------------------------|-----------------------------------------|
-| **3D U-Net**   | S1     | `./train.sh <path_to_data> [S1] unet3d`   |
-|                | S2     | `./train.sh <path_to_data> [S2] unet3d`   |
-|                | L8     | `./train.sh <path_to_data> [L8] unet3d`   |
-|                |Fusion  | `./train.sh <path_to_data> [S1,S2,L8] unet3d` |
-| **UTAE**   | S1     | `./train.sh <path_to_data> [S1] utae`   |
-|                | S2     | `./train.sh <path_to_data> [S2] utae`   |
-|                | L8     | `./train.sh <path_to_data> [L8] utae`   |
-|                |Fusion  | `./train.sh <path_to_data> [S1,S2,L8] utae` |
-| **ConvLSTM**   | S1     | `./train.sh <path_to_data> [S1] convlstm`   |
-|                | S2     | `./train.sh <path_to_data> [S2] convlstm`   |
-|                | L8     | `./train.sh <path_to_data> [L8] convlstm`   |
-|                |Fusion  | `./train.sh <path_to_data> [S1,S2,L8] convlstm` |
-
-
-
-### Citation
-
-If you use the code base or the dataset, please cite our paper:
-```
+```bibtex
 @InProceedings{Sani_2024_WACV,
-author = {Sani, Depanshu and Mahato, Sandeep and Saini, Sourabh and Agarwal, Harsh Kumar and Devshali, Charu Chandra and Anand, Saket and Arora, Gaurav and Jayaraman, Thiagarajan},
-title = {SICKLE: A Multi-Sensor Satellite Imagery Dataset Annotated With Multiple Key Cropping Parameters},
-booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
-month = {January},
-year = {2024},
-pages = {5995-6004}
-} 
+    author    = {Sani, Depanshu and Mahato, Sandeep and Saini, Sourabh and Agarwal, Harsh Kumar and Devshali, Charu Chandra and Anand, Saket and Arora, Gaurav and Jayaraman, Thiagarajan},
+    title     = {SICKLE: A Multi-Sensor Satellite Imagery Dataset Annotated With Multiple Key Cropping Parameters},
+    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+    month     = {January},
+    year      = {2024},
+    pages     = {5995-6004}
+}
+
+@inproceedings{Anonymous_2025_WACV,
+    author    = {Anonymous Authors},
+    title     = {Enhancing Adaptive Multi-Sensor Satellite Fusion for Robust Agricultural Prediction},
+    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+    year      = {2025}
+}
 ```
 
-### Acknowledgment
- 
-- This work was partly supported by Google’s AI for Social Good “Impact Scholars” program and [ Infosys Center for Artificial Intelligence at IIIT-Delhi](https://cai.iiitd.ac.in/).
-- We also appreciate [Parichya Sirohi](https://in.linkedin.com/in/parichya-sirohi-122318136)’s contributions in the early stages of the project.
-- We express our gratitude to [Dr. Gopinath R.](https://in.linkedin.com/in/gopinath-r-001b09a) and [Dr. Rajakumar R.](/) from Ecotechnology, [MS Swaminathan Research Foundation](https://www.mssrf.org/), Chennai, for their valuable inputs concerning the study area and assistance with field data collection.
-- This work is built upon the implementation provided by [Garnot et al.](https://github.com/VSainteuf/utae-paps)
+## Acknowledgments
+
+  - This work was partly supported by Google’s AI for Social Good “Impact Scholars” program and the Infosys Center for Artificial Intelligence at IIIT-Delhi.
+  - We thank Parichya Sirohi for contributions in the early stages of the project.
+  - We express our gratitude to Dr. Gopinath R. and Dr. Rajakumar R. from Ecotechnology, MS Swaminathan Research Foundation, for their valuable inputs and assistance with field data collection.
+  - This work builds upon the implementation provided by [Garnot et al.](https://github.com/VSainteuf/utae-paps).
+
+<!-- end list -->
