@@ -4,6 +4,14 @@
 
 This repository contains the official implementation for our research on adaptive multi-sensor fusion for agricultural prediction. Our work began with the creation of the **SICKLE dataset (WACV 2024)** to provide a robust foundation for multi-sensor analysis. We then developed an advanced **Multi-Head Cross Fusion model (WACV 2025 Submission)** that significantly outperforms baseline models, especially under challenging conditions like cloud cover.
 
+# Our final Approach
+
+<img width="1170" height="777" alt="image" src="https://github.com/user-attachments/assets/fed84c22-3159-4e53-8bf0-c656adb36f57" />
+
+
+
+
+
 **[SICKLE Website](https://sites.google.com/iiitd.ac.in/sickle/) | [SICKLE Paper (WACV 2024)](https://openaccess.thecvf.com/content/WACV2024/html/Sani_SICKLE_A_Multi-Sensor_Satellite_Imagery_Dataset_Annotated_With_Multiple_Key_WACV_2024_paper.html) | [SICKLE Video](https://www.youtube.com/watch?v=2p4BDVLrmdw) | [Request Dataset Access](https://docs.google.com/forms/d/e/1FAIpQLSdq7Dcj5FF1VmlKozrQ7XNoq006iVKrUIMTK2jReBJDuO1N2g/viewform)**
 
 ---
